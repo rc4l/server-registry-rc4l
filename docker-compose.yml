@@ -1,0 +1,13 @@
+# The exact compose file running at registry.cantstopscrolling.net.
+#
+# Pin the version, never `latest`: an upgrade should be a deliberate one-line change you can revert,
+# not something that happens silently the next time the container restarts.
+services:
+  server-registry:
+    image: ghcr.io/rc4l/zandrox-server-registry:0.0.2
+    container_name: server-registry
+    restart: always          # survives reboots -- deployment is one-time, not per-boot
+    ports:
+      - "15300:15300/udp"    # the port is compiled in (DEFAULT_SERVERREGISTRY_PORT); remap host-side only
+    volumes:
+      - ./data:/data         # the four IP lists; re-read every 15 min, so edits need no restart
