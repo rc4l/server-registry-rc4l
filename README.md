@@ -48,6 +48,54 @@ If you put this behind Cloudflare, the record must be **DNS only (grey cloud)**.
 handles HTTP/HTTPS, not UDP — turn the orange cloud on and traffic never reaches the host, with no
 error, just servers that quietly stop appearing.
 
+## Infrastructure
+
+Where this instance actually runs, and the trade-offs that came with it.
+
+| | |
+|---|---|
+| Host | DigitalOcean droplet `zandrox-crash`, nyc3, Ubuntu 24.04 |
+| Address | `167.172.239.206` — the droplet's own IP, **not** a Reserved IP |
+| DNS | `registry.cantstopscrolling.net` → A record, **grey cloud** |
+| Shares the box with | the crash reporter (`crash.cantstopscrolling.net`) |
+
+### The IP is stable, not permanent
+
+A droplet's public IPv4 survives reboots and power cycles, so it will not drift. But it is **not**
+reserved: destroy or rebuild the droplet and you get a different address. This is the reason the
+hostname exists — if the IP changes, one A record is edited and every server following the name
+reconnects on its own, with no operator touching anything.
+
+Making it truly immovable means a DigitalOcean **Reserved IP**, which can be moved to a replacement
+droplet. Worth doing before other people federate here; unnecessary while it is one test server.
+
+### The hostname insulates addressing, not exposure
+
+Worth being precise, because it is easy to assume otherwise:
+
+- **Solved:** the IP changing. Operators follow the name.
+- **Not solved:** the origin IP is public. A grey-cloud record *is* the disclosure, and it is
+  permanent for as long as the record exists.
+- **Not solved:** Cloudflare absorbs nothing here. DNS-only means traffic goes straight to the host —
+  no proxying, no rate limiting, no filtering on UDP 15300.
+
+Note the side effect: `crash.cantstopscrolling.net` is proxied, so Cloudflare *was* hiding this
+droplet's real address. Publishing a grey-cloud record for the same box ends that. The crash
+reporter can now be reached directly, bypassing Cloudflare.
+
+### Known exposure: UDP reflection
+
+A registry is a reflector by design — a small request produces a ~3 KB server list, and UDP source
+addresses are trivially spoofed. The daemon's flood protection is per-source-IP, which does not stop
+spoofed reflection, because every forged source looks new.
+
+The risk is not that the registry falls over; it is that the **host** emits a flood of outbound
+traffic and gets rate-limited or nullrouted by the provider — taking the crash reporter down with
+it, since they share an address.
+
+Mitigations, in order of effort: outbound rate limiting on UDP 15300, then moving the registry to
+its own droplet so the two services stop sharing fate.
+
 ## Moderation policy
 
 This registry **hides servers that do not enforce its ban list** (`sv_fua_serverregistry_enforcebans
