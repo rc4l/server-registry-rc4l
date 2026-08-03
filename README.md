@@ -1,20 +1,20 @@
 # server-registry-rc4l
 
-The deployment and moderation config for **rc4l's ZandroX server registry** — a live instance, kept
-public so anyone standing up their own has a working example rather than a blank page.
+Deployment and moderation config for a **ZandroX server registry** — a live instance, kept public so
+anyone standing up their own has a working example rather than a blank page.
 
 - **Address:** `registry.cantstopscrolling.net` (UDP 15300)
 - **Image:** [`ghcr.io/rc4l/zandrox-server-registry`](https://github.com/rc4l/ZandroX/pkgs/container/zandrox-server-registry)
-- **Software:** [ZandroX](https://github.com/rc4l/ZandroX) — `src/zandronum/server-registry/`
+- **Software:** [ZandroX](https://github.com/rc4l/ZandroX)
 
 ## What a server registry does
 
-Servers announce themselves to it every 30 seconds; it drops them after 60 without a heartbeat. A
-client asking for the list gets back **addresses only** — every detail the browser shows (name, map,
-players, ping) comes from querying each server directly.
+Servers announce themselves every 30 seconds; the registry drops them after 60 without a heartbeat.
+A client asking for the list gets back **addresses only** — every detail the browser shows (name,
+map, players, ping) comes from querying each server directly.
 
-That is why it needs no database and no backups: restart it and the list repopulates within a
-minute. The only durable state is the four IP lists in `data/`.
+So it needs no database and no backups: restart it and the list repopulates within a minute. The
+only durable state is the four IP lists in `data/`.
 
 ## Run your own
 
@@ -22,18 +22,18 @@ minute. The only durable state is the four IP lists in `data/`.
 curl -fsSL https://raw.githubusercontent.com/rc4l/server-registry-rc4l/main/deploy.sh | bash
 ```
 
-One line because a browser console cannot paste newlines. Re-run it to upgrade — the ban lists
-survive. It is a **one-time** setup: the container carries `restart: always`, so it comes back after
-a reboot without help.
+One line because a browser console cannot paste newlines. Re-run it to upgrade; the ban lists
+survive. It is a **one-time** setup — the container carries `restart: always`, so it returns after a
+reboot on its own.
 
-Then point a server at it:
+Point a server at it:
 
 ```
 fua_serverregistry_host "registry.cantstopscrolling.net"
 sv_fua_serverregistry_announce 1
 ```
 
-Watch `docker compose logs -f`; a working announce looks like:
+A working announce looks like this in `docker compose logs -f`:
 
 ```
 + Adding <ip>:10666 (revision …) to the verification list.
@@ -42,72 +42,33 @@ Watch `docker compose logs -f`; a working announce looks like:
 <ip>:10666 acknowledged receipt of the banlist.
 ```
 
-### DNS: do not proxy it
+## Running one well
 
-If you put this behind Cloudflare, the record must be **DNS only (grey cloud)**. Cloudflare's proxy
-handles HTTP/HTTPS, not UDP — turn the orange cloud on and traffic never reaches the host, with no
-error, just servers that quietly stop appearing.
+Three things worth knowing before you host one, all learned the hard way.
 
-## Infrastructure
+**Never proxy the DNS record.** CDN proxies handle HTTP/HTTPS, not UDP — enable one and traffic
+never reaches the host, with no error, just servers that quietly stop appearing. (On Cloudflare that
+is the orange cloud; keep it grey.) A plain DNS record also means the host's address is public — the
+record *is* the disclosure — which is unavoidable, since the registry must be directly reachable.
 
-Where this instance actually runs, and the trade-offs that came with it.
+**Use a hostname, not a bare IP.** A provider's default IP usually survives reboots but not a
+rebuild. Behind a name, an address change is one DNS edit and every server follows automatically;
+handing out an IP makes it a coordinated migration. A reserved/floating IP is better still once
+other people depend on you.
 
-| | |
-|---|---|
-| Host | a DigitalOcean droplet, nyc3, Ubuntu 24.04 |
-| Address | reach it by name: `registry.cantstopscrolling.net` |
-| DNS | A record, **grey cloud** (never proxied) |
-| Shares the box with | the crash reporter |
-
-Deliberately no raw IP here. It is discoverable via DNS anyway, but a config repo should point at
-the name — the address is the thing that changes, and anything documenting it goes stale the first
-time the droplet is rebuilt.
-
-### The IP is stable, not permanent
-
-A droplet's public IPv4 survives reboots and power cycles, so it will not drift. But it is **not**
-reserved: destroy or rebuild the droplet and you get a different address. This is the reason the
-hostname exists — if the IP changes, one A record is edited and every server following the name
-reconnects on its own, with no operator touching anything.
-
-Making it truly immovable means a DigitalOcean **Reserved IP**, which can be moved to a replacement
-droplet. Worth doing before other people federate here; unnecessary while it is one test server.
-
-### The hostname insulates addressing, not exposure
-
-Worth being precise, because it is easy to assume otherwise:
-
-- **Solved:** the IP changing. Operators follow the name.
-- **Not solved:** the origin IP is public. A grey-cloud record *is* the disclosure, and it is
-  permanent for as long as the record exists.
-- **Not solved:** Cloudflare absorbs nothing here. DNS-only means traffic goes straight to the host —
-  no proxying, no rate limiting, no filtering on UDP 15300.
-
-Note the side effect: `crash.cantstopscrolling.net` is proxied, so Cloudflare *was* hiding this
-droplet's real address. Publishing a grey-cloud record for the same box ends that. The crash
-reporter can now be reached directly, bypassing Cloudflare.
-
-### Known exposure: UDP reflection
-
-A registry is a reflector by design — a small request produces a ~3 KB server list, and UDP source
-addresses are trivially spoofed. The daemon's flood protection is per-source-IP, which does not stop
-spoofed reflection, because every forged source looks new.
-
-The risk is not that the registry falls over; it is that the **host** emits a flood of outbound
-traffic and gets rate-limited or nullrouted by the provider — taking the crash reporter down with
-it, since they share an address.
-
-Mitigations, in order of effort: outbound rate limiting on UDP 15300, then moving the registry to
-its own droplet so the two services stop sharing fate.
+**A registry is a UDP reflector.** A small request produces a multi-kilobyte server list, and UDP
+source addresses are trivially spoofed. Built-in flood protection is per-source-IP, which does not
+stop spoofed reflection. The risk is not the registry falling over — it is the *host* emitting a
+flood and getting rate-limited by its provider, so give it a box whose fate you are happy to share.
 
 ## Moderation policy
 
-This registry **hides servers that do not enforce its ban list** (`sv_fua_serverregistry_enforcebans
-false`). Listing here means accepting these bans. That is a deliberate choice and not a demand:
-registries are federated, so a server that declines can advertise on one that does not enforce.
-Refusing a listing is a redirect, not exile.
+This registry **hides servers that do not enforce its ban list**
+(`sv_fua_serverregistry_enforcebans false`). Listing here means accepting these bans.
 
-Server operators can always opt out — enforcement is a CVAR on their side, never compelled by us.
+That is a choice, not a demand: registries are federated, so a server that declines can advertise on
+one that does not enforce. Refusing a listing is a redirect, not exile. Enforcement is a CVAR on the
+operator's side and is never compelled by us.
 
 ## The lists in `data/`
 
@@ -120,18 +81,13 @@ Server operators can always opt out — enforcement is a CVAR on their side, nev
 
 All four are re-read **every 15 minutes**, so an edit applies without a restart.
 
-### Why the current lists are empty
+They start empty and stay empty until there is a reason — running an independent registry means
+inheriting nobody else's ban decisions.
 
-They start empty and stay empty until there is a reason. Running an independent registry means
-inheriting nobody else's ban decisions — that is the point of running one.
-
-### On publishing bans
-
-Current state is published here for accountability. Note that entries are **IP addresses**, which are
-personal data, and that home addresses are shared and reassigned — a ban today can land on a
-stranger in six months. Entries are therefore kept current rather than accumulated, and removed once
-they stop being useful.
+On publishing bans: entries are **IP addresses**, which are personal data, and home addresses are
+shared and reassigned — a ban today can land on a stranger in six months. Entries are kept current
+rather than accumulated.
 
 ## Licence
 
-Config and scripts: GPL-3.0-or-later, matching ZandroX.
+GPL-3.0-or-later, matching ZandroX.

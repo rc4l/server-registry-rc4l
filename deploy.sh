@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/rc4l/server-registry-rc4l/main/deploy.sh | bash
 #   curl -fsSL .../deploy.sh | bash -s -- 0.0.3      # pin a different version
 #
-# One curl line because the DigitalOcean browser console cannot paste newlines. Idempotent: re-run
+# One curl line because a provider's browser console typically cannot paste newlines. Idempotent: re-run
 # it to upgrade, and the ban lists survive. The container carries `restart: always`, so this is a
 # ONE-TIME setup -- re-run only to change version.
 set -euo pipefail
@@ -50,7 +50,7 @@ EOF
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
 	ufw allow "${PORT}/udp" >/dev/null 2>&1 && echo "==> ufw: opened ${PORT}/udp"
 else
-	echo "==> NOTE: ufw not active. Ensure UDP ${PORT} is open (DigitalOcean cloud firewall?)"
+	echo "==> NOTE: ufw not active. Ensure UDP ${PORT} is open (host firewall / provider firewall)"
 fi
 
 cd "${DIR}"
