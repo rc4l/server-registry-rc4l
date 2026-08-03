@@ -54,10 +54,14 @@ Where this instance actually runs, and the trade-offs that came with it.
 
 | | |
 |---|---|
-| Host | DigitalOcean droplet `zandrox-crash`, nyc3, Ubuntu 24.04 |
-| Address | `167.172.239.206` — the droplet's own IP, **not** a Reserved IP |
-| DNS | `registry.cantstopscrolling.net` → A record, **grey cloud** |
-| Shares the box with | the crash reporter (`crash.cantstopscrolling.net`) |
+| Host | a DigitalOcean droplet, nyc3, Ubuntu 24.04 |
+| Address | reach it by name: `registry.cantstopscrolling.net` |
+| DNS | A record, **grey cloud** (never proxied) |
+| Shares the box with | the crash reporter |
+
+Deliberately no raw IP here. It is discoverable via DNS anyway, but a config repo should point at
+the name — the address is the thing that changes, and anything documenting it goes stale the first
+time the droplet is rebuilt.
 
 ### The IP is stable, not permanent
 
