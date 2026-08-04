@@ -59,12 +59,30 @@ $COMPOSE up -d
 
 echo "==> waiting for the daemon"
 sleep 4
-$COMPOSE logs --tail=20
+
+# The registry's log names every server and client that has talked to it -- IP addresses are the
+# entire content of the interesting lines. That is fine on your own terminal and NOT fine when this
+# script runs from CI, whose output is public: one deploy publishes the address of everyone connected
+# at that moment.
+#
+# So print the log only when a human is watching, or when something has actually gone wrong, and mask
+# addresses whenever stdout is not a terminal. Found the hard way -- the first automated deploy put a
+# home IP into a public Actions log.
+show_logs() {
+	if [ -t 1 ]; then
+		$COMPOSE logs --tail=20
+	else
+		$COMPOSE logs --tail=20 | sed -E 's/([0-9]{1,3}\.){3}[0-9]{1,3}/<ip>/g'
+	fi
+}
+
+[ -t 1 ] && show_logs
 
 # Assert it is up rather than leaving the operator to read logs: a container that starts and
 # immediately dies still prints a banner.
 if [ "$(docker inspect -f '{{.State.Running}}' server-registry 2>/dev/null)" != "true" ]; then
-	echo "!! server-registry is NOT running -- see the log above" >&2
+	echo "!! server-registry is NOT running:" >&2
+	show_logs >&2
 	exit 1
 fi
 echo "==> OK: running on UDP ${PORT}"
