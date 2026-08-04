@@ -1,0 +1,57 @@
+# [rc4l] Read the registry's recent log, without a console session.
+#
+# The registry's own log is the only thing that answers "is this server's inbound port reachable?" --
+# reaching the verification list means its announce arrived, reaching the server list means we got a
+# reply back to it. Seeing the first without the second is a blocked port. That diagnostic is useless
+# if reading it requires SSH access that only one person has.
+#
+# Addresses are masked twice: on the host, so they never leave it, and again here, so this job does
+# not depend on the host's version being current. This log is public.
+name: Server Registry Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "How far back to read, in minutes"
+        required: false
+        default: "10"
+        type: string
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch logs
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          MINUTES: ${{ inputs.minutes }}
+        run: |
+          set -euo pipefail
+
+          if ! printf '%s' "$MINUTES" | grep -Eq '^[0-9]{1,4}$'; then
+            echo "::error::minutes must be a number, got '${MINUTES}'"
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o ConnectTimeout=20 \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" "logs ${MINUTES}" 2>&1 \
+            | sed -E 's/([0-9]{1,3}\.){3}[0-9]{1,3}/<ip>/g'
+
+      - name: Clean up key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
