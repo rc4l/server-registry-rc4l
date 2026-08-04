@@ -1,0 +1,78 @@
+# [rc4l] Deploy a published image to the registry host.
+#
+# Triggered by hand (or by repository_dispatch, so the image release in rc4l/ZandroX can fire it
+# later). Deliberately NOT on push and NEVER on pull_request: this repo is public, and a workflow that
+# can reach the host must not be runnable by anyone who can open a PR. workflow_dispatch requires
+# write access, which is the boundary we want.
+#
+# Everything host-specific -- address, login, key -- is a secret. Nothing in this file identifies the
+# machine, so the repo stays public without publishing where the registry lives.
+name: Deploy Server Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image version to deploy, e.g. 0.0.3"
+        required: true
+        type: string
+  repository_dispatch:
+    types: [deploy-server-registry]
+
+# One deploy at a time. Two overlapping runs would race on the same compose project.
+concurrency:
+  group: deploy-server-registry
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          VERSION: ${{ inputs.version || github.event.client_payload.version }}
+        run: |
+          set -euo pipefail
+
+          # Validate here as well as on the host. The host is the real boundary, but failing in CI
+          # gives a readable error instead of an opaque exit 2 from a forced command.
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::version must look like 0.0.3, got '${VERSION}'"
+            exit 1
+          fi
+
+          for v in DEPLOY_KEY DEPLOY_HOST DEPLOY_USER DEPLOY_KNOWN_HOSTS; do
+            if [ -z "${!v}" ]; then
+              echo "::error::secret ${v} is not set"
+              exit 1
+            fi
+          done
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Pinned host key: without this, StrictHostKeyChecking would either prompt (and hang) or be
+          # disabled (and accept any host that answers on that address).
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          echo "Deploying ${VERSION}"
+
+          # The remote end runs a forced command, so this argument is the whole request -- it arrives
+          # there as SSH_ORIGINAL_COMMAND and is validated again before it becomes a version.
+          ssh -i ~/.ssh/deploy_key \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o ConnectTimeout=20 \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" "$VERSION"
+
+      - name: Clean up key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
