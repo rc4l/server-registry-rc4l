@@ -66,12 +66,21 @@ jobs:
 
           # The remote end runs a forced command, so this argument is the whole request -- it arrives
           # there as SSH_ORIGINAL_COMMAND and is validated again before it becomes a version.
+          #
+          # Everything the host says is masked for IPv4 addresses before it reaches this log. THIS is
+          # the guarantee, not the equivalent masking inside deploy.sh: that script is fetched from a
+          # CDN at deploy time, so this job cannot know which version of it ran -- and the first two
+          # attempts here proved the point by publishing a home IP from a cached copy that still had
+          # the old behaviour. The publisher has to be the thing that redacts.
+          #
+          # pipefail (set above) keeps ssh's exit status rather than sed's.
           ssh -i ~/.ssh/deploy_key \
               -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=yes \
               -o UserKnownHostsFile=~/.ssh/known_hosts \
               -o ConnectTimeout=20 \
-              "${DEPLOY_USER}@${DEPLOY_HOST}" "$VERSION"
+              "${DEPLOY_USER}@${DEPLOY_HOST}" "$VERSION" 2>&1 \
+            | sed -E 's/([0-9]{1,3}\.){3}[0-9]{1,3}/<ip>/g'
 
       - name: Clean up key
         if: always()

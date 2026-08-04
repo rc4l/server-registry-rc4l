@@ -25,5 +25,11 @@ echo "==> ci-deploy: requested version ${VERSION}"
 
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
-curl -fsSL "$DEPLOY_URL" -o "$tmp"
+
+# Cache-bust. raw.githubusercontent.com serves through a CDN with a few minutes of TTL, so a deploy
+# run shortly after a push to deploy.sh silently executes the PREVIOUS version -- which is how a fix
+# to that script appeared to do nothing twice in a row. A deploy should run the script as it is now,
+# not as it was when someone else last asked for it.
+curl -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+	"${DEPLOY_URL}?t=$(date +%s)" -o "$tmp"
 bash "$tmp" "$VERSION"
