@@ -45,6 +45,34 @@ services:
       - ./data:/data
 EOF
 
+# Keep the CI forced command in step with the repo, on hosts that use one.
+#
+# ci-deploy.sh is installed on the host rather than fetched per call, so without this, changing it
+# meant someone re-running ci-authorize.sh by hand -- a manual step in the middle of a setup whose
+# entire point was removing manual steps.
+#
+# This grants nothing new: deploy.sh is already fetched from the same repo and run as root, so anyone
+# able to alter it could rewrite authorized_keys directly. The constraint on the deploy key was never
+# stronger than "whoever controls this repo", and self-updating does not change that.
+#
+# Only ever an UPGRADE, never an install: if no forced command exists, this host has not authorised CI
+# and should not silently acquire it. Written to a temp file and renamed, because this script may be
+# running as a child of the very file being replaced -- rename swaps the inode and leaves the running
+# process reading the old one, where `curl -o` onto the live path would truncate it mid-execution.
+CI_WRAPPER="${DIR}/ci-deploy.sh"
+if [ -f "$CI_WRAPPER" ]; then
+	if curl -fsSL -H 'Cache-Control: no-cache' \
+		"https://raw.githubusercontent.com/rc4l/server-registry-rc4l/main/ci-deploy.sh?t=$(date +%s)" \
+		-o "${CI_WRAPPER}.new" 2>/dev/null; then
+		chmod 750 "${CI_WRAPPER}.new"
+		mv "${CI_WRAPPER}.new" "$CI_WRAPPER"
+		echo "==> refreshed the CI forced command"
+	else
+		rm -f "${CI_WRAPPER}.new"
+		echo "==> NOTE: could not refresh the CI forced command; keeping the installed one"
+	fi
+fi
+
 # Best-effort: a host may use ufw, nftables, a cloud firewall, or nothing. Never fail the deploy over
 # it, but say so -- a silently unreachable registry looks exactly like a broken one.
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
