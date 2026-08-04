@@ -1,0 +1,5 @@
+# wrangler drops a local cache next to wrangler.toml. It holds the Cloudflare account id and
+# scratch build output -- nothing catastrophic, but it identifies the account and belongs to whoever
+# ran the deploy, not to the repo.
+.wrangler/
+node_modules/

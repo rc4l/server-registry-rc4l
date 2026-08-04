@@ -1,9 +1,23 @@
 # server-registry-rc4l
 
-Deployment and moderation config for a **ZandroX server registry** — a live instance, kept public so
-anyone standing up their own has a working example rather than a blank page.
+The infrastructure behind rc4l's corner of the ZandroX network, kept public so anyone standing up
+their own has a working example rather than a blank page.
 
-- **Address:** `registry.cantstopscrolling.net` (UDP 15300)
+Two separate things live here:
+
+| | |
+|---|---|
+| **The server registry** | `registry.cantstopscrolling.net` (UDP 15300) — the daemon servers announce to |
+| **[`serverregistrylist-cdn/`](serverregistrylist-cdn/)** | `registrylist.cantstopscrolling.net` — a Cloudflare Worker caching the list of registries clients trust |
+
+They are unrelated in function and share only an operator. The registry is a UDP daemon whose DNS
+record must never be proxied; the Worker is HTTPS and must be. Both are here because both are
+*deployment*, which is what this repo is for.
+
+**Neither owns the trust list.** That file lives in the
+[engine repo](https://github.com/rc4l/ZandroX/blob/main/serverregistries.txt), so it forks with the
+engine and no single registry becomes the authority over the list it is merely listed on.
+
 - **Image:** [`ghcr.io/rc4l/zandrox-server-registry`](https://github.com/rc4l/ZandroX/pkgs/container/zandrox-server-registry)
 - **Software:** [ZandroX](https://github.com/rc4l/ZandroX)
 
