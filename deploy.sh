@@ -9,7 +9,7 @@
 # ONE-TIME setup -- re-run only to change version.
 set -euo pipefail
 
-VERSION="${1:-0.0.2}"
+VERSION="${1:-0.0.3}"
 DIR="${SERVER_REGISTRY_DIR:-/srv/server-registry}"
 PORT=15300
 

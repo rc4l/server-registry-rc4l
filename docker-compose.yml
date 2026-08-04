@@ -4,7 +4,7 @@
 # not something that happens silently the next time the container restarts.
 services:
   server-registry:
-    image: ghcr.io/rc4l/zandrox-server-registry:0.0.2
+    image: ghcr.io/rc4l/zandrox-server-registry:0.0.3
     container_name: server-registry
     restart: always          # survives reboots -- deployment is one-time, not per-boot
     ports:
