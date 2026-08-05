@@ -19,7 +19,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 rc4l
 
-const SOURCE = "https://raw.githubusercontent.com/rc4l/ZandroX/main/serverregistries.txt";
+const SOURCE = "https://raw.githubusercontent.com/rc4l/ZandroX/main/config/serverregistries.txt";
 
 // 6 hours, matching what the client uses. The client refreshes at most every 6h and this cache holds
 // for 6h, so a newly listed server registry reaches everyone within ~12h worst case.
