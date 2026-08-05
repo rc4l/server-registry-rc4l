@@ -1,7 +1,7 @@
 # serverregistrylist-cdn
 
 The Cloudflare Worker that serves ZandroX's
-[`serverregistries.txt`](https://github.com/rc4l/ZandroX/blob/main/serverregistries.txt) to clients.
+[`serverregistries.txt`](https://github.com/rc4l/ZandroX/blob/main/config/serverregistries.txt) to clients.
 
 ```
 ZandroX repo (source of truth, edited by PR)

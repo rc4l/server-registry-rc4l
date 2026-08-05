@@ -15,7 +15,7 @@ record must never be proxied; the Worker is HTTPS and must be. Both are here bec
 *deployment*, which is what this repo is for.
 
 **Neither owns the trust list.** That file lives in the
-[engine repo](https://github.com/rc4l/ZandroX/blob/main/serverregistries.txt), so it forks with the
+[engine repo](https://github.com/rc4l/ZandroX/blob/main/config/serverregistries.txt), so it forks with the
 engine and no single registry becomes the authority over the list it is merely listed on.
 
 - **Image:** [`ghcr.io/rc4l/zandrox-server-registry`](https://github.com/rc4l/ZandroX/pkgs/container/zandrox-server-registry)
