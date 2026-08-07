@@ -2,9 +2,13 @@
 #
 # Pin the version, never `latest`: an upgrade should be a deliberate one-line change you can revert,
 # not something that happens silently the next time the container restarts.
+#
+# This file is documentation, not the source of truth -- the deploy workflow takes the version as an
+# input and writes the compose file on the host. Update the pin here whenever you deploy, or this
+# drifts and quietly says the wrong thing, which it did between 0.0.3 and 0.1.1.
 services:
   server-registry:
-    image: ghcr.io/rc4l/zandrox-server-registry:0.0.3
+    image: ghcr.io/rc4l/zandrox-server-registry:0.1.1
     container_name: server-registry
     restart: always          # survives reboots -- deployment is one-time, not per-boot
     ports:
