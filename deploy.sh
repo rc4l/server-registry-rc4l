@@ -9,11 +9,24 @@
 # ONE-TIME setup -- re-run only to change version.
 set -euo pipefail
 
-VERSION="${1:-0.0.3}"
+# No default. There used to be one, 0.0.3, and it went stale the first time anything shipped past
+# it, so a hand-run deploy would quietly DOWNGRADE the registry. The rename made it worse: 0.0.3
+# exists only under the old image name, so the fallback now names a tag that cannot be pulled at all.
+# Refusing is the only answer that is right in both cases.
+VERSION="${1:-}"
+if [ -z "$VERSION" ]; then
+	echo "!! no version given. Usage: deploy.sh <x.y.z>   e.g. deploy.sh 0.1.5" >&2
+	exit 2
+fi
+if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+	echo "!! expected a version like 0.1.5, got '${VERSION}'" >&2
+	exit 2
+fi
+
 DIR="${SERVER_REGISTRY_DIR:-/srv/server-registry}"
 PORT=15300
 
-echo "==> ZandroX server registry ${VERSION} -> ${DIR}"
+echo "==> ForkUnderA server registry ${VERSION} -> ${DIR}"
 
 command -v docker >/dev/null || { echo "!! docker is not installed" >&2; exit 1; }
 # Compose v2 is a docker subcommand; v1 was a separate binary. Support both rather than assume.
