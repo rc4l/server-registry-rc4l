@@ -1,10 +1,15 @@
 # The exact compose file running at registry.cantstopscrolling.net.
 #
-# RENAMED: the image moved from zandrox-server-registry with the ForkUnderA rebrand, and the version
-# 0.1.5 is the first published under the new name. NOTE: this file said 0.0.3 while the droplet was
-# actually running 0.1.4 -- it had drifted from the live compose at /srv/server-registry/.
+# RENAMED: the image moved from zandrox-server-registry with the ForkUnderA rebrand, and 0.1.5 is
+# the first version published under the new name.
+#
 # Pin the version, never `latest`: an upgrade should be a deliberate one-line change you can revert,
 # not something that happens silently the next time the container restarts.
+#
+# This file is documentation, not the source of truth -- the deploy workflow takes the version as an
+# input and writes the compose file on the host. Update the pin here whenever you deploy, or this
+# drifts and quietly says the wrong thing, which it did between 0.0.3 and 0.1.1, and again at 0.1.4:
+# the host was running 0.1.4 while this said 0.0.3.
 services:
   server-registry:
     image: ghcr.io/rc4l/forkundera-server-registry:0.1.5
