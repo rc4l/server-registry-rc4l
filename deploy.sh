@@ -36,7 +36,7 @@ done
 cat > "${DIR}/docker-compose.yml" <<EOF
 services:
   server-registry:
-    image: ghcr.io/rc4l/zandrox-server-registry:${VERSION}
+    image: ghcr.io/rc4l/forkundera-server-registry:${VERSION}
     container_name: server-registry
     restart: always
     ports:
