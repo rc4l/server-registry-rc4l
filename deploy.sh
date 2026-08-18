@@ -56,6 +56,23 @@ services:
       - "${PORT}:${PORT}/udp"
     volumes:
       - ./data:/data
+
+# [rc4l] IPv6 on the published port, and it has to be here rather than set by hand on the host --
+# this file is rewritten on every deploy, so a manual edit is undone the next time anything ships.
+#
+# Without it Docker hands v6 to the userland proxy, which REWRITES THE SOURCE ADDRESS. The registry
+# keys a server on the address its announce arrived from, so every IPv6 server would be recorded as
+# one internal address: no v6 listing, no v6 verification, no v6 punch. It fails as silence rather
+# than as an error, which is why it is worth a comment this long.
+#
+# Needs "ipv6": true and "ip6tables": true in /etc/docker/daemon.json on the host as well; the
+# network cannot carry v6 if the daemon does not.
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:fa:2::/64
 EOF
 
 # Keep the CI forced command in step with the repo, on hosts that use one.
